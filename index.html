@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The AI Race — Live Model Leaderboard</title>
+<meta name="description" content="The world's first live leaderboard tracking every major AI model. Rankings, benchmarks, social buzz, and speed — updated weekly. Who's winning the AI race?">
+<meta property="og:title" content="The AI Race — Live AI Model Leaderboard">
+<meta property="og:description" content="Models became rockets. Benchmarks became fuel. See who's winning.">
+<meta property="og:image" content="https://i.imgur.com/placeholder.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  :root {
+    --green: #4ade80;
+    --green-dim: #166534;
+    --green-glow: rgba(74, 222, 128, 0.15);
+    --bg-0: #030712;
+    --bg-1: #0a0f1e;
+    --bg-2: #0f172a;
+    --bg-3: #1e293b;
+    --text-pri: #f1f5f9;
+    --text-sec: #94a3b8;
+    --text-dim: #475569;
+    --border: #1e293b;
+    --orange: #f97316;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --amber: #fbbf24;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg-0);
+    color: var(--text-pri);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* STARS */
+  #stars-canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* INTRO CINEMATIC */
+  #intro {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 1s ease;
+  }
+
+  #intro.gone { opacity: 0; pointer-events: none; }
+
+  .intro-line {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--green);
+    font-size: 13px;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    opacity: 0;
+    margin-bottom: 14px;
+    transform: translateY(20px);
+    transition: all 0.8s ease;
+  }
+
+  .intro-line.small { font-size: 10px; color: var(--text-sec); font-family: 'Space Mono', monospace; }
+  .intro-line.big { font-size: clamp(24px, 5vw, 40px); font-weight: 900; color: white; letter-spacing: 8px; margin-top: 20px; }
+  .intro-line.show { opacity: 1; transform: translateY(0); }
+
+  /* LAYOUT */
+  .page-wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px 60px;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(14px, 3vw, 18px);
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: white;
+  }
+  .logo em { color: var(--green); font-style: normal; }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #052e16;
+    border: 1px solid var(--green-dim);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 9px;
+    color: var(--green);
+    letter-spacing: 2px;
+  }
+
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    animation: livepulse 1.2s ease infinite;
+  }
+
+  @keyframes livepulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.3; transform:scale(0.6); }
+  }
+
+  .share-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-sec);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 5px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .share-btn:hover { border-color: var(--green); color: var(--green); }
+
+  /* TICKER */
+  .ticker-wrap {
+    background: #020a04;
+    border-top: 1px solid var(--green-dim);
+    border-bottom: 1px solid var(--green-dim);
+    overflow: hidden;
+    padding: 7px 0;
+    margin-bottom: 28px;
+  }
+
+  .ticker {
+    display: flex;
+    gap: 60px;
+    animation: ticker-scroll 30s linear infinite;
+    width: max-content;
+  }
+
+  .ticker-item {
+    font-size: 9px;
+    color: var(--green);
+    letter-spacing: 2px;
+    white-space: nowrap;
+  }
+  .ticker-item span { color: var(--text-dim); margin-right: 8px; }
+
+  @keyframes ticker-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* STATS ROW */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: var(--green-dim); }
+
+  .stat-label {
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .stat-val {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(16px, 3vw, 22px);
+    font-weight: 700;
+  }
+
+  .stat-sub {
+    font-size: 9px;
+    margin-top: 5px;
+    letter-spacing: 1px;
+  }
+
+  /* RACE TRACK */
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    margin-top: 28px;
+  }
+
+  .section-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .filter-btn.active, .filter-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-glow); }
+
+  .rocket-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .rank-badge {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .r1 { background: #fbbf24; color: #000; }
+  .r2 { background: #94a3b8; color: #000; }
+  .r3 { background: #d97706; color: #000; }
+  .rn { background: var(--bg-3); color: var(--text-dim); border: 1px solid var(--border); }
+
+  .model-info {
+    width: 90px;
+    flex-shrink: 0;
+  }
+
+  .model-name {
+    font-size: 11px;
+    color: white;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .model-sub {
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+
+  .track {
+    flex: 1;
+    height: 30px;
+    background: #060e1a;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .track-grid-lines {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      90deg, transparent, transparent 9.9%, #1e293b55 9.9%, #1e293b55 10%
+    );
+    pointer-events: none;
+  }
+
+  .rocket-fill {
+    position: absolute;
+    left: 0; top: 3px;
+    height: 24px;
+    border-radius: 3px;
+    display: flex; align-items: center;
+    transition: width 2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    width: 0;
+    min-width: 0;
+  }
+
+  .rocket-fill span {
+    font-size: 9px;
+    font-weight: 700;
+    color: white;
+    margin-left: 10px;
+    white-space: nowrap;
+    letter-spacing: 1px;
+    font-family: 'Orbitron', sans-serif;
+  }
+
+  .rocket-icon {
+    position: absolute;
+    right: -3px;
+    font-size: 18px;
+    filter: drop-shadow(0 0 4px currentColor);
+    transition: opacity 0.3s;
+  }
+
+  .track-score {
+    width: 44px;
+    text-align: right;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* BOTTOM GRID */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 28px;
+  }
+
+  @media (max-width: 600px) {
+    .bottom-grid { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+
+  .panel-title {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  /* BUZZ CHART */
+  .buzz-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .buzz-label {
+    width: 65px;
+    font-size: 9px;
+    color: var(--text-sec);
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+
+  .buzz-track {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-3);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .buzz-fill {
+    height: 100%;
+    border-radius: 4px;
+    width: 0;
+    transition: width 2.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .buzz-pct {
+    font-size: 9px;
+    color: var(--text-dim);
+    width: 28px;
+    text-align: right;
+    font-family: 'Orbitron', sans-serif;
+    flex-shrink: 0;
+  }
+
+  /* LEADERBOARD TABLE */
+  .lb-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--bg-3);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .lb-row:hover { background: var(--bg-3); margin: 0 -6px; padding: 8px 6px; border-radius: 4px; }
+  .lb-row:last-child { border-bottom: none; }
+
+  .lb-num { font-size: 9px; color: var(--text-dim); width: 14px; font-family: 'Orbitron', monospace; }
+  .lb-info { flex: 1; }
+  .lb-name { font-size: 10px; color: var(--text-pri); letter-spacing: 1px; }
+  .lb-co { font-size: 8px; color: var(--text-dim); margin-top: 2px; letter-spacing: 1px; }
+  .lb-score-cell { font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; }
+
+  .trend-up { font-size: 8px; color: var(--green); }
+  .trend-down { font-size: 8px; color: #f87171; }
+
+  /* SPONSOR / AD SLOT */
+  .sponsor-banner {
+    background: linear-gradient(90deg, #052e16, var(--bg-2), #052e16);
+    border: 1px solid var(--green-dim);
+    border-radius: 8px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .sponsor-text h3 {
+    font-size: 11px;
+    color: var(--green);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .sponsor-text p {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  .sponsor-cta {
+    background: var(--green);
+    color: #000;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 20px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .sponsor-cta:hover { background: #86efac; }
+
+  /* NEWSLETTER */
+  .newsletter {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .nl-text h3 { font-size: 11px; color: white; letter-spacing: 2px; margin-bottom: 4px; }
+  .nl-text p { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; }
+
+  .nl-form { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .nl-input {
+    background: var(--bg-0);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: white;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    padding: 8px 14px;
+    width: 200px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .nl-input::placeholder { color: var(--text-dim); }
+  .nl-input:focus { border-color: var(--green); }
+
+  .nl-btn {
+    background: var(--green);
+    color: #000;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+  .nl-btn:hover { background: #86efac; }
+
+  /* FOOTER */
+  footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .footer-text {
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    line-height: 1.8;
+  }
+
+  .footer-links { display: flex; gap: 16px; }
+  .footer-links a { font-size: 8px; color: var(--text-dim); text-decoration: none; letter-spacing: 2px; text-transform: uppercase; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--green); }
+
+  /* GLOW LINE */
+  .glow-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+    margin: 24px 0;
+    opacity: 0.4;
+  }
+
+  /* MOBILE */
+  @media (max-width: 600px) {
+    .model-info { width: 70px; }
+    .model-name { font-size: 9px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- STARFIELD -->
+<canvas id="stars-canvas"></canvas>
+
+<!-- CINEMATIC INTRO -->
+<div id="intro">
+  <div class="intro-line small" id="il1">somewhere in the internet...</div>
+  <div class="intro-line" id="il2">models became rockets.</div>
+  <div class="intro-line" id="il3">benchmarks became fuel.</div>
+  <div class="intro-line" id="il4">companies became rivals.</div>
+  <div class="intro-line big" id="il5">THE AI RACE</div>
+</div>
+
+<!-- MAIN PAGE -->
+<div class="page-wrapper">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="logo">THE <em>AI</em> RACE</div>
+    <div class="topbar-right">
+      <div style="font-size:8px;color:var(--text-dim);letter-spacing:2px;" id="last-updated">UPDATED: WEEKLY</div>
+      <button class="share-btn" onclick="shareIt()">Share ↗</button>
+      <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+    </div>
+  </div>
+
+  <!-- TICKER -->
+  <div class="ticker-wrap">
+    <div class="ticker" id="tickerEl">
+      <span class="ticker-item"><span>CLAUDE OPUS 4.6</span> OVERALL RANK #1 · SCORE 94.2</span>
+      <span class="ticker-item"><span>GPT-5</span> CODING BENCHMARK +2.3% THIS WEEK</span>
+      <span class="ticker-item"><span>GEMINI ULTRA 3</span> MULTIMODAL SCORE 89.5</span>
+      <span class="ticker-item"><span>GROK 4</span> SPEED: NEW RECORD — FASTEST RESPONSE</span>
+      <span class="ticker-item"><span>LLAMA 4</span> OPEN SOURCE CHAMPION — META SURGES</span>
+      <span class="ticker-item"><span>MISTRAL LARGE 3</span> EUROPE RISING — 74.6 COMPOSITE</span>
+      <span class="ticker-item"><span>QWEN 3 MAX</span> ASIA POWERHOUSE — 71.2 AND CLIMBING</span>
+      <span class="ticker-item"><span>CLAUDE OPUS 4.6</span> OVERALL RANK #1 · SCORE 94.2</span>
+      <span class="ticker-item"><span>GPT-5</span> CODING BENCHMARK +2.3% THIS WEEK</span>
+      <span class="ticker-item"><span>GEMINI ULTRA 3</span> MULTIMODAL SCORE 89.5</span>
+      <span class="ticker-item"><span>GROK 4</span> SPEED: NEW RECORD — FASTEST RESPONSE</span>
+      <span class="ticker-item"><span>LLAMA 4</span> OPEN SOURCE CHAMPION — META SURGES</span>
+      <span class="ticker-item"><span>MISTRAL LARGE 3</span> EUROPE RISING — 74.6 COMPOSITE</span>
+      <span class="ticker-item"><span>QWEN 3 MAX</span> ASIA POWERHOUSE — 71.2 AND CLIMBING</span>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+      <div class="stat-label">Models Racing</div>
+      <div class="stat-val" style="color:var(--green);" id="sc-models">0</div>
+      <div class="stat-sub" style="color:var(--text-dim);">+3 this week</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Top Score</div>
+      <div class="stat-val" style="color:var(--amber);" id="sc-top">0.0</div>
+      <div class="stat-sub" style="color:var(--text-dim);">Claude Opus 4.6</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Fastest Rising</div>
+      <div class="stat-val" style="color:var(--blue);">GROK</div>
+      <div class="stat-sub" style="color:var(--green);">↑ +12% this month</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Most Discussed</div>
+      <div class="stat-val" style="color:#f97316;">GPT-5</div>
+      <div class="stat-sub" style="color:#f87171;">↓ Buzz -4%</div>
+    </div>
+  </div>
+
+  <!-- RACE TRACK -->
+  <div class="section-head">
+    <div class="section-label">Overall Power Ranking — Composite Score</div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="setFilter(this,'all')">All</button>
+      <button class="filter-btn" onclick="setFilter(this,'coding')">Coding</button>
+      <button class="filter-btn" onclick="setFilter(this,'reasoning')">Reasoning</button>
+      <button class="filter-btn" onclick="setFilter(this,'speed')">Speed</button>
+    </div>
+  </div>
+
+  <div id="racetrack"></div>
+
+  <div class="glow-line"></div>
+
+  <!-- BOTTOM PANELS -->
+  <div class="bottom-grid">
+    <div class="panel">
+      <div class="panel-title">Social Buzz Index — This Week</div>
+      <div id="buzzPanel"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Full Rankings — All Models</div>
+      <div id="lbPanel"></div>
+    </div>
+  </div>
+
+  <!-- SPONSOR SLOT -->
+  <div class="sponsor-banner">
+    <div class="sponsor-text">
+      <h3>Sponsor a Rocket Slot</h3>
+      <p>Reach 50,000+ AI engineers, researchers, and founders weekly · Starting $29/month</p>
+    </div>
+    <button class="sponsor-cta" onclick="alert('Coming soon — email theairace@gmail.com to reserve your slot.')">Advertise Here ↗</button>
+  </div>
+
+  <!-- NEWSLETTER -->
+  <div class="newsletter">
+    <div class="nl-text">
+      <h3>The Weekly Race Report</h3>
+      <p>Get the AI power rankings delivered every Monday. Free forever.</p>
+    </div>
+    <div class="nl-form">
+      <input class="nl-input" type="email" placeholder="your@email.com" id="emailInput">
+      <button class="nl-btn" onclick="subscribeEmail()">Subscribe ↗</button>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-text">
+      Built with Claude · Data updated weekly<br>
+      © 2026 The AI Race · All scores are composite indices
+    </div>
+    <div class="footer-links">
+      <a href="#" onclick="alert('Methodology coming soon')">Methodology</a>
+      <a href="#" onclick="alert('API coming soon')">API</a>
+      <a href="mailto:theairace@gmail.com">Contact</a>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+// ── DATA ───────────────────────────────────────────────────────────────
+const MODELS = [
+  { name:'Claude',  sub:'Opus 4.6',    co:'Anthropic', scores:{all:94.2,coding:96.1,reasoning:95.0,speed:88.0}, color:'#f97316', trend:'+0.8', up:true },
+  { name:'GPT-5',   sub:'Flagship',    co:'OpenAI',    scores:{all:91.8,coding:93.0,reasoning:90.0,speed:91.0}, color:'#60a5fa', trend:'+0.2', up:true },
+  { name:'Gemini',  sub:'Ultra 3',     co:'Google',    scores:{all:89.5,coding:87.0,reasoning:88.0,speed:93.0}, color:'#4ade80', trend:'+1.4', up:true },
+  { name:'Grok',    sub:'4 Heavy',     co:'xAI',       scores:{all:85.3,coding:84.0,reasoning:82.0,speed:96.0}, color:'#a78bfa', trend:'+2.1', up:true },
+  { name:'Llama',   sub:'4 Scout',     co:'Meta',      scores:{all:80.1,coding:79.0,reasoning:78.0,speed:83.0}, color:'#fb923c', trend:'-0.3', up:false },
+  { name:'Mistral', sub:'Large 3',     co:'Mistral AI',scores:{all:74.6,coding:73.0,reasoning:72.0,speed:78.0}, color:'#38bdf8', trend:'+0.5', up:true },
+  { name:'Qwen',    sub:'3 Max',       co:'Alibaba',   scores:{all:71.2,coding:70.0,reasoning:69.0,speed:74.0}, color:'#e879f9', trend:'+1.8', up:true },
+  { name:'Falcon',  sub:'2 Ultra',     co:'TII',       scores:{all:66.0,coding:64.0,reasoning:65.0,speed:70.0}, color:'#34d399', trend:'+3.1', up:true },
+];
+
+const BUZZ = [
+  { name:'ChatGPT', pct:88, color:'#60a5fa' },
+  { name:'Claude',  pct:74, color:'#f97316' },
+  { name:'Gemini',  pct:61, color:'#4ade80' },
+  { name:'Grok',    pct:52, color:'#a78bfa' },
+  { name:'Llama',   pct:38, color:'#fb923c' },
+  { name:'Mistral', pct:22, color:'#38bdf8' },
+];
+
+let currentFilter = 'all';
+
+// ── STARS ──────────────────────────────────────────────────────────────
+function drawStars() {
+  const canvas = document.getElementById('stars-canvas');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < 200; i++) {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * canvas.height;
+    const r = Math.random() * 1.2 + 0.2;
+    const alpha = Math.random() * 0.7 + 0.1;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.fill();
+  }
+}
+drawStars();
+window.addEventListener('resize', drawStars);
+
+// ── INTRO ──────────────────────────────────────────────────────────────
+function runIntro() {
+  const lines = ['il1','il2','il3','il4','il5'];
+  lines.forEach((id, i) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('show');
+    }, 400 + i * 800);
+  });
+  setTimeout(() => {
+    const intro = document.getElementById('intro');
+    if (intro) { intro.style.opacity = '0'; setTimeout(() => intro.remove(), 1000); }
+    animateAll();
+  }, 5500);
+}
+runIntro();
+
+// ── BUILD RACETRACK ────────────────────────────────────────────────────
+function buildRacetrack(filter) {
+  const container = document.getElementById('racetrack');
+  container.innerHTML = '';
+  const sorted = [...MODELS].sort((a,b) => b.scores[filter] - a.scores[filter]);
+  sorted.forEach((m, i) => {
+    const rank = i + 1;
+    const rankClass = rank===1?'r1':rank===2?'r2':rank===3?'r3':'rn';
+    const pct = (m.scores[filter] / 100 * 95).toFixed(1);
+    const row = document.createElement('div');
+    row.className = 'rocket-row';
+    row.innerHTML = `
+      <div class="rank-badge ${rankClass}">${rank}</div>
+      <div class="model-info">
+        <div class="model-name">${m.name}</div>
+        <div class="model-sub">${m.sub}</div>
+      </div>
+      <div class="track">
+        <div class="track-grid-lines"></div>
+        <div class="rocket-fill" id="rf-${i}" style="background:${m.color}20;border:1px solid ${m.color}50;">
+          <span style="color:${m.color}">${m.scores[filter]}</span>
+          <span class="rocket-icon" style="color:${m.color}">🚀</span>
+        </div>
+      </div>
+      <div class="track-score" style="color:${m.color}">${m.scores[filter]}</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function buildBuzz() {
+  const c = document.getElementById('buzzPanel');
+  c.innerHTML = '';
+  BUZZ.forEach(b => {
+    const row = document.createElement('div');
+    row.className = 'buzz-row';
+    row.innerHTML = `
+      <div class="buzz-label">${b.name}</div>
+      <div class="buzz-track"><div class="buzz-fill" id="bz-${b.name}" style="background:${b.color};"></div></div>
+      <div class="buzz-pct">${b.pct}%</div>
+    `;
+    c.appendChild(row);
+  });
+}
+
+function buildLeaderboard() {
+  const c = document.getElementById('lbPanel');
+  c.innerHTML = '';
+  MODELS.forEach((m, i) => {
+    const row = document.createElement('div');
+    row.className = 'lb-row';
+    row.innerHTML = `
+      <div class="lb-num">${i+1}</div>
+      <div class="lb-info">
+        <div class="lb-name">${i===0?'★ ':''}${m.name} ${m.sub}</div>
+        <div class="lb-co">${m.co}</div>
+      </div>
+      <div class="${m.up?'trend-up':'trend-down'}">${m.trend}</div>
+      <div class="lb-score-cell" style="color:${m.color}">${m.scores.all}</div>
+    `;
+    c.appendChild(row);
+  });
+}
+
+// ── ANIMATE ────────────────────────────────────────────────────────────
+function animateAll() {
+  buildRacetrack(currentFilter);
+  buildBuzz();
+  buildLeaderboard();
+  setTimeout(() => {
+    MODELS.forEach((m, i) => {
+      const el = document.getElementById(`rf-${i}`);
+      if (el) {
+        setTimeout(() => {
+          el.style.width = (m.scores[currentFilter] / 100 * 95) + '%';
+        }, i * 100);
+      }
+    });
+    BUZZ.forEach(b => {
+      const el = document.getElementById(`bz-${b.name}`);
+      if (el) el.style.width = b.pct + '%';
+    });
+    // count up stats
+    countUp('sc-models', 24, false);
+    countUp('sc-top', 94.2, true);
+  }, 200);
+}
+
+function countUp(id, target, decimal) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  let cur = 0;
+  const steps = 60;
+  const step = target / steps;
+  const t = setInterval(() => {
+    cur += step;
+    if (cur >= target) { cur = target; clearInterval(t); }
+    el.textContent = decimal ? cur.toFixed(1) : Math.round(cur);
+  }, 25);
+}
+
+// ── FILTER ────────────────────────────────────────────────────────────
+function setFilter(btn, filter) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildRacetrack(filter);
+  setTimeout(() => {
+    MODELS.sort((a,b) => b.scores[filter]-a.scores[filter]).forEach((m,i) => {
+      const el = document.getElementById(`rf-${i}`);
+      if (el) { el.style.width = '0'; setTimeout(() => { el.style.width = (m.scores[filter]/100*95)+'%'; }, 50+i*80); }
+    });
+  }, 50);
+}
+
+// ── SHARE ─────────────────────────────────────────────────────────────
+function shareIt() {
+  const text = 'The AI Race — Real-time leaderboard tracking every major AI model. Who\'s winning? 🚀';
+  if (navigator.share) {
+    navigator.share({ title: 'The AI Race', text, url: window.location.href });
+  } else {
+    navigator.clipboard.writeText(window.location.href);
+    alert('Link copied! Share it everywhere 🚀');
+  }
+}
+
+function subscribeEmail() {
+  const email = document.getElementById('emailInput').value;
+  if (!email || !email.includes('@')) { alert('Enter a valid email'); return; }
+  alert(`✅ You're on the list! Weekly AI race reports coming to ${email}`);
+  document.getElementById('emailInput').value = '';
+}
+
+// ── DATE ──────────────────────────────────────────────────────────────
+document.getElementById('last-updated').textContent = 
+  'UPDATED: ' + new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}).toUpperCase();
+</script>
+</body>
+</html>
