@@ -4,7 +4,7 @@
 
 **The AI Race** is a cinematic, real-time tracking dashboard that visualizes the cutthroat competition between LLMs. From GPT-4o and Claude 3.5 Sonnet to the latest open-source titans like Llama 3, this project turns dry benchmarks into a high-stakes digital drag race.
 
-[LIVE DEMO HERE](https://SonOfIleroje.github.io/the-ai-race)
+[LIVE DEMO HERE][(https://SonOfIleroje.github.io/the-ai-race)](https://sonofileroje.github.io/the-ai-race)
 
 ---
 
